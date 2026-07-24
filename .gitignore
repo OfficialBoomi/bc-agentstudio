@@ -1,0 +1,8 @@
+build-state.md
+.env
+.claude/settings.local.json
+reference/
+hook-logs/
+CLAUDE.local.md
+.vscode/
+.DS_Store
