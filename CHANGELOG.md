@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.1.39
+
+- Add tool-type selection guidance on authoring tools.
+- Document the Integration tool's return: execution metadata, no document content, `outboundDocumentCount: 0`.
+- Document the read/write tool split for Integration processes.
+
+
+## 0.1.38
+
+- Add `AGENTSTUDIO_SESSION_TIMEOUT` (default `120`) for the session per-turn deadline.
+- Report the enforced deadline in the timeout error instead of `AGENTSTUDIO_TIMEOUT`.
+- Document both timeout settings in the plugin and skill READMEs.
+
+
+## 0.1.37
+
+- Document `AGENTSTUDIO_ENVIRONMENT_ID`, `AGENTSTUDIO_TIMEOUT`, and `BOOMI_COMPANION_LOG_ACTIVITY` in the skill README.
+- Document the ANZ/JP Execute hosts and the ANZ/JP Design host fallback in the plugin README.
+- Add the ANZ/JP hosts to the 401/403 region hint.
+
+
 ## 0.1.36
 
 - Add `AGENTSTUDIO_ENVIRONMENT_ID` to `.env`; the deploy environment is no longer a CLI argument.

@@ -224,6 +224,8 @@ agentstudio_api() {
 
   local userpass="BOOMI_TOKEN.${BOOMI_USERNAME}:${BOOMI_API_TOKEN}"
 
+  local timeout="${AGENTSTUDIO_TIMEOUT:-60}"
+
   local tmpfile
   tmpfile=$(mktemp)
 
@@ -231,7 +233,7 @@ agentstudio_api() {
   local rc
   set +e
   RESPONSE_CODE=$(curl -s \
-    --max-time "${AGENTSTUDIO_TIMEOUT:-60}" \
+    --max-time "$timeout" \
     -A "$AGENTSTUDIO_USER_AGENT" \
     -u "$userpass" \
     -o "$tmpfile" -w "%{http_code}" \
@@ -262,7 +264,7 @@ agentstudio_api() {
         echo "  The host resolved but rejected the connection — check the port/scheme or a proxy." >&2
         ;;
       28)
-        echo "ERROR: request to '${target_host:-?}' timed out after ${AGENTSTUDIO_TIMEOUT:-60}s (curl exit 28)." >&2
+        echo "ERROR: request to '${target_host:-?}' timed out after ${timeout}s (curl exit 28)." >&2
         echo "  Likely a slow network, VPN, or an unresponsive host." >&2
         ;;
       *)
@@ -279,9 +281,9 @@ agentstudio_api() {
 # Region/privilege hint for 401/403 responses.
 agentstudio_auth_hint() {
   echo "HINT: verify the host in AGENTSTUDIO_DESIGN_URL / AGENTSTUDIO_EXECUTE_URL matches your" >&2
-  echo "  console region — Design US datalake-prod / UK datalake-uk-prod; Execute US c01-usa-east" >&2
-  echo "  / UK c01-gbr — and that your token carries AGENT_GARDEN_ACCESS and AGENT_VIEW" >&2
-  echo "  (AGENT_INTERACT for session)." >&2
+  echo "  console region — Design US datalake-prod / UK datalake-uk-prod (ANZ/JP use US);" >&2
+  echo "  Execute US c01-usa-east / UK c01-gbr / ANZ c01-aus / JP c01-jp — and that your" >&2
+  echo "  token carries AGENT_GARDEN_ACCESS and AGENT_VIEW (AGENT_INTERACT for session)." >&2
 }
 
 # Print the response on stderr and exit; hint at region/privilege on auth failures.

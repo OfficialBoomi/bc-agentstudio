@@ -28,7 +28,9 @@ sent (file-only request).
 A conversational agent streams its reply as Server-Sent Events (text/event-stream);
 a structured agent returns one JSON object. The raw response is emitted on stdout.
 
-Reads BOOMI_* and AGENTSTUDIO_EXECUTE_URL from .env.
+Reads BOOMI_* and AGENTSTUDIO_EXECUTE_URL from .env. AGENTSTUDIO_SESSION_TIMEOUT
+sets the per-turn timeout in seconds (default 120); a turn that overruns is
+aborted and its output discarded.
 EOF
 }
 [[ -z "${1:-}" ]] && { usage; exit 0; }
@@ -61,6 +63,9 @@ load_env
 require_env BOOMI_USERNAME BOOMI_API_TOKEN BOOMI_ACCOUNT_ID AGENTSTUDIO_EXECUTE_URL
 require_tools curl
 (( ${#file_paths[@]} > 0 )) && require_tools base64
+
+# Session deadline; set after load_env so .env cannot override it.
+AGENTSTUDIO_TIMEOUT="${AGENTSTUDIO_SESSION_TIMEOUT:-120}"
 
 url="$(agentstudio_execute_url "session")"
 
@@ -126,7 +131,7 @@ if (( ${#file_paths[@]} > 0 )); then
 fi
 
 # Send bodies via a temp file, never an inline argv string: a large base64 body would exceed ARG_MAX.
-post_body_file() { agentstudio_api -X POST -H "Content-Type: application/json" --max-time 120 --data-binary "@$1" "$url"; }
+post_body_file() { agentstudio_api -X POST -H "Content-Type: application/json" --data-binary "@$1" "$url"; }
 post_body_inline() {
   local tmp rc; tmp=$(mktemp)
   printf '%s' "$1" > "$tmp"

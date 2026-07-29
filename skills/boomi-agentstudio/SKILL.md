@@ -296,6 +296,8 @@ Two more optional fields:
 
 Four tool types are authored through `agentstudio-tool.sh`: **Prompt**, **OpenAPI** (the console's "API tool"), **Integration**, and **Hub** (the console's "DataHub Query tool"). MCP tools come from a source (see **Authoring an MCP-server source**); `Application` tools are Boomi-managed and read-only.
 
+**Picking a type.** Prompt runs an LLM instruction; OpenAPI calls one REST/SOAP endpoint; Hub queries DataHub golden records; Integration triggers a deployed Boomi process. The distinction that constrains design: an Integration tool returns only execution metadata, never document content, so it fits side effects — write, record, dispatch, notify — rather than anything the agent needs to read back. If the agent must see what the call produced, reach for OpenAPI, Hub, or MCP.
+
 **Lifecycle.** `create --type <type> --body <file>` posts a definition; the new tool is **`DRAFT`**. A DRAFT tool can be attached to a task, but an agent referencing any inactive tool **cannot be packaged** (`package-create` fails: `"N tool(s) remain inactive."`) — so `install --type <type> <id>` every referenced tool before packaging. `install` (the console's "Deploy Tool") sets `tool_status` → `ACTIVE`; `uninstall` → `DISABLED`. `update --type <type> <id> --body <file>` replaces the definition but cannot change `tool_status` (only `install`/`uninstall` do) — and needs no disable step first: a tool can be updated in any status (`DRAFT`, `ACTIVE`, or `DISABLED`) and the edit leaves `tool_status` unchanged. `create` needs `AGENT_CREATE`; `install`/`uninstall` need `AGENT_INSTALL`. Read `tool_status`, not `installed_on`, to check active state — `installed_on` is set only while `ACTIVE`.
 
 To mirror an existing tool, `get` it and keep the writable fields; strip the read-only set (silently ignored if sent): `id`, `created_on`, `last_updated_on`, `created_by`, `last_updated_by`, `last_used_on`, `installed_on`, `pre_installed`, `provider_name`, `provider_id`, `unique_name`, `tool_status`, `type`.
@@ -376,7 +378,7 @@ Several fields wire a value from either a static literal or an input parameter �
 
 - `environment_id`/`atom_id`/`process_id` identify a deployed, **non-listener** process (discover via `boomi-integration` or the Platform); `*_name` are display labels. A name-only `create` succeeds (IDs default to `""`) but the tool is non-functional until `update`d with real IDs.
 - `dynamic_process_properties` — a map keyed by the process's DPP name; each value is the static-or-parameter object.
-- The agent receives only execution status (success/failure), not the process's output documents.
+- The agent receives one JSON object of execution metadata — status, execution id, timing, and document counts; `outboundDocumentCount` reads `0` even when the process added documents to its Return Documents store. A process that both reads and writes usually wants splitting: an OpenAPI or Hub tool for the read, this tool for the write, with the read value passed in as a DPP.
 
 **Hub** (console "DataHub Query tool") — query golden records from one repository:
 
