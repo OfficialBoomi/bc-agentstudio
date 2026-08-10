@@ -11,6 +11,7 @@ load_env() {
     set -a
     source "$env_file"
     set +a
+    _set_user_agent   # .env must not override the header
   else
     echo "ERROR: .env file not found in $(pwd)" >&2
     exit 1
@@ -133,14 +134,15 @@ _skill_version() {
   cat "$(dirname "${BASH_SOURCE[0]}")/../VERSION" 2>/dev/null || echo "unknown"
 }
 
-_skill_name() {
-  basename "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" 2>/dev/null || echo "unknown"
-}
-
 # --- Constants ---
 
-BOOMI_SKILL_NAME="${BOOMI_SKILL_NAME:-$(_skill_name)}"
-AGENTSTUDIO_USER_AGENT="boomi-companion/${BOOMI_SKILL_NAME}/$(_skill_version)"
+# Skill name is a literal — standalone installs may rename the directory.
+# A function because load_env re-calls it after sourcing .env, so the
+# User-Agent cannot be poisoned.
+_set_user_agent() {
+  AGENTSTUDIO_USER_AGENT="boomi-companion/boomi-agentstudio/$(_skill_version)"
+}
+_set_user_agent
 
 # --- Activity logging ---
 
@@ -171,7 +173,7 @@ log_activity() {
 
     jq -cn \
       --arg ts "$timestamp" \
-      --arg name "${BOOMI_SKILL_NAME:-unknown}" \
+      --arg name "boomi-agentstudio" \
       --arg ver "$(_skill_version)" \
       --arg ws "$(basename "$(pwd)")" \
       --arg op "$operation" \

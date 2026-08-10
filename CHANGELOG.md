@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.41
+
+- Pin the API User-Agent against install-directory and `.env` overrides
+
+
+## 0.1.40
+
+- Ship `CHANGELOG.md` inside the skill directory
+
+
 ## 0.1.39
 
 - Add tool-type selection guidance on authoring tools.
