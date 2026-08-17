@@ -5,8 +5,20 @@ Notes for developers working on this skill.
 ## Layout
 
 - `SKILL.md` — agent entry point and navigation hub: scope, terminology, credential contract, scripts inventory, and the create/update body shape.
-- `scripts/agentstudio-common.sh` — sourced helper library: env loading, the Design / Execute URL builders, and the `agentstudio_api` wrapper.
+- `scripts/agentstudio-common.sh` — sourced helper library: env loading, the Design / Execute URL builders, and the `agentstudio_api` wrapper. `agentstudio_api` feeds auth to curl on stdin (`-K -`) to keep credentials out of process arguments, so stdin is reserved — never `@-`, `-T -`, or piping into the wrapper. Inline `-d` and `--data-binary @file` are both fine.
 - `scripts/agentstudio-*.sh` — per-noun CLI tools (agent, tool, source, deployment, session, env-check).
+
+## Credential handling invariants
+
+Three rules hold across `scripts/`. Each is mechanically checkable, so treat a change that breaks one as not mergeable.
+
+- **Never in argv.** Auth reaches curl through `curl_cfg` on stdin (`-K -`). This is why stdin is reserved — see the `agentstudio_api` note above.
+- **Never exported.** `load_env` sources `.env` without `set -a`, so values stay in the loading shell. Nothing needs them exported: `agentstudio_api` expands them in the same shell, no script invokes another as a child, and `jq` receives values via `--arg`.
+- **Never in a shell trace.** xtrace prints commands *after* expansion, so any command expanding a credential prints its value — and Claude Code captures stderr into the transcript. Three sites expand one: `load_env`'s source, the `userpass` assignment in `agentstudio_api`, and `env_is_set`. Each carries its own fence, and `env_is_set` is the single by-name (`${!var}`) expansion site — add no others. `log_activity`'s `2>/dev/null` fences its block by the same mechanism, since xtrace writes to stderr.
+
+A fence covers one function in one shell. `set -x` is not inherited across a process boundary on its own, but an exported `SHELLOPTS` (or a `BASH_ENV` startup file that sets `-x`) re-enables tracing in a child regardless of what the parent set — so if a script ever invokes another as a child, the callee needs its own guard. Comment every fence with the site it protects, so a later reader does not delete it as redundant.
+
+Scripts outside the library need no fence of their own today: they pass credential *names* to `require_env`, and the values they print (`BOOMI_USERNAME` in `agentstudio-env-check.sh`) already go to stdout by design, so xtrace exposes nothing new.
 
 ## API surfaces
 

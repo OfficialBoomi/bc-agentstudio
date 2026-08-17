@@ -8,9 +8,13 @@ set -euo pipefail
 load_env() {
   local env_file=".env"
   if [[ -f "$env_file" ]]; then
-    set -a
+    # Fence: xtrace would print every assignment in .env, token included.
+    local _xtrace=0
+    case $- in *x*) _xtrace=1 ;; esac
+    set +x
+    # No `set -a` — values stay unexported. See CLAUDE.md.
     source "$env_file"
-    set +a
+    if (( _xtrace )); then set -x; fi
     _set_user_agent   # .env must not override the header
   else
     echo "ERROR: .env file not found in $(pwd)" >&2
@@ -18,10 +22,22 @@ load_env() {
   fi
 }
 
+# The skill's only `${!name}` site — fenced so xtrace can't print the value.
+env_is_set() {
+  local _xtrace=0
+  case $- in *x*) _xtrace=1 ;; esac
+  set +x
+  local _rc=0
+  [[ -n "${!1:-}" ]] || _rc=1
+  if (( _xtrace )); then set -x; fi
+  return "$_rc"
+}
+
 require_env() {
   local missing=()
+  local var
   for var in "$@"; do
-    if [[ -z "${!var:-}" ]]; then
+    if ! env_is_set "$var"; then
       missing+=("$var")
     fi
   done
@@ -198,6 +214,7 @@ log_activity() {
         http_code: (if $http == "" then null else ($http | tonumber? // $http) end),
         details: $details
       }' >> "$log_file"
+  # The 2>/dev/null also fences xtrace around the BOOMI_USERNAME expansion.
   } 2>/dev/null || true
 }
 
@@ -215,16 +232,41 @@ agentstudio_execute_url() {
 
 # --- API helper ---
 
+# Emits curl config directives for `curl -K -`, keeping credentials out of argv.
+# Usage: curl_cfg user "u:p"
+curl_cfg() {
+  (( $# % 2 == 0 )) || { echo "ERROR: curl_cfg needs directive/value pairs" >&2; return 1; }
+  local val
+  while [[ $# -gt 1 ]]; do
+    # Backslash first, so the escapes added below aren't doubled.
+    val="$2"
+    val="${val//\\/\\\\}"
+    val="${val//\"/\\\"}"
+    val="${val//$'\t'/\\t}"
+    val="${val//$'\r'/\\r}"
+    val="${val//$'\n'/\\n}"
+    printf '%s = "%s"\n' "$1" "$val"
+    shift 2
+  done
+}
+
 # Sets RESPONSE_BODY and RESPONSE_CODE. Always Basic auth with Platform creds.
 RESPONSE_BODY=""
 RESPONSE_CODE=""
 agentstudio_api() {
-  # Disable xtrace so a caller's set -x can't leak the token.
-  local _xtrace_enabled=0
-  case $- in *x*) _xtrace_enabled=1 ;; esac
+  # Fence: xtrace would print the token the next assignment expands.
+  local _xtrace=0
+  case $- in *x*) _xtrace=1 ;; esac
   set +x
 
   local userpass="BOOMI_TOKEN.${BOOMI_USERNAME}:${BOOMI_API_TOKEN}"
+
+  local cfg
+  cfg=$(curl_cfg user "$userpass") || {
+    echo "ERROR: could not build the curl auth config." >&2
+    if (( _xtrace )); then set -x; fi
+    return 1
+  }
 
   local timeout="${AGENTSTUDIO_TIMEOUT:-60}"
 
@@ -234,19 +276,20 @@ agentstudio_api() {
   # Run curl without errexit so connection failures return, not abort.
   local rc
   set +e
-  RESPONSE_CODE=$(curl -s \
-    --max-time "$timeout" \
-    -A "$AGENTSTUDIO_USER_AGENT" \
-    -u "$userpass" \
-    -o "$tmpfile" -w "%{http_code}" \
-    "$@")
+  RESPONSE_CODE=$(printf '%s\n' "$cfg" \
+    | curl -s \
+        --max-time "$timeout" \
+        -A "$AGENTSTUDIO_USER_AGENT" \
+        -K - \
+        -o "$tmpfile" -w "%{http_code}" \
+        "$@")
   rc=$?
   set -e
   RESPONSE_BODY=$(cat "$tmpfile")
   rm -f "$tmpfile"
 
-  # Restore the caller's xtrace setting.
-  (( _xtrace_enabled )) && set -x
+  # `if`, not `&&` — a false `&&` tail returns 1 and trips a caller's set -e.
+  if (( _xtrace )); then set -x; fi
 
   if (( rc != 0 )) || [[ -z "$RESPONSE_CODE" || "$RESPONSE_CODE" == "000" ]]; then
     # Pull the request URL out of the args so the hint can name the offending host.

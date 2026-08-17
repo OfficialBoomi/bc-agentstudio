@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.42
+
+- Feed credentials to curl on stdin instead of the command line (CWE-214)
+- Stop exporting `.env` values to child processes (CWE-526)
+- Keep credential values out of shell traces
+
+
 ## 0.1.41
 
 - Pin the API User-Agent against install-directory and `.env` overrides

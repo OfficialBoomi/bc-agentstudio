@@ -24,7 +24,8 @@ require_tools curl
 
 echo "=== Design API (required) ==="
 for v in BOOMI_USERNAME BOOMI_API_TOKEN BOOMI_ACCOUNT_ID AGENTSTUDIO_DESIGN_URL; do
-  [[ -n "${!v:-}" ]] && echo "  $v=SET" || echo "  $v=UNSET"
+  # env_is_set, not `${!v}` — by-name expansion lives in that helper.
+  if env_is_set "$v"; then echo "  $v=SET"; else echo "  $v=UNSET"; fi
 done
 
 url="$(agentstudio_design_url "environments?page_size=1")"
