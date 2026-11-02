@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.43
+
+- Remove Claude-specific references
+
+
 ## 0.1.42
 
 - Feed credentials to curl on stdin instead of the command line (CWE-214)

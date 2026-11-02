@@ -12,7 +12,7 @@ load_env() {
     local _xtrace=0
     case $- in *x*) _xtrace=1 ;; esac
     set +x
-    # No `set -a` — values stay unexported. See CLAUDE.md.
+    # No `set -a` — values stay unexported.
     source "$env_file"
     if (( _xtrace )); then set -x; fi
     _set_user_agent   # .env must not override the header

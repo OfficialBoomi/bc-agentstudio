@@ -32,8 +32,3 @@ Run `bash <skill-path>/scripts/agentstudio-env-check.sh` from a workspace with `
 | `AGENTSTUDIO_TIMEOUT` | `60` | Per-request curl timeout in seconds for Design API calls. |
 | `AGENTSTUDIO_SESSION_TIMEOUT` | `120` | Per-turn curl timeout in seconds for `agentstudio-session.sh`. Raise it for agents that make several sequential tool calls — a turn that overruns is aborted and its output discarded. |
 | `BOOMI_COMPANION_LOG_ACTIVITY` | off | Set to `1` to append a local JSONL record of each write operation to `.activity-log/activity.jsonl`. Requires `jq`; nothing is sent off-machine. |
-
-Allowlist the skill and its scripts in the workspace's `.claude/settings.json` under `permissions.allow`:
-
-- `Skill(bc-agentstudio:boomi-agentstudio)`
-- `Bash(bash */skills/boomi-agentstudio/scripts/*)`

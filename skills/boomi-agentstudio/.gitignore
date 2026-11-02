@@ -1,0 +1,10 @@
+.claude/
+.vscode/
+hook-logs/
+.env
+.env.*
+.DS_Store
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+AGENTS.override.md
