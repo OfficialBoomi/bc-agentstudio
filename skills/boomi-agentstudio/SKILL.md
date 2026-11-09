@@ -1,13 +1,13 @@
 ---
 name: boomi-agentstudio
-description: Builds and runs Boomi Agentstudio AI agents (the Agent Garden APIs) — list and inspect agents, author and update agent definitions including guardrails, author and install tools (Prompt, OpenAPI, Integration, Hub), browse sources, packages, deployments, and environments, and invoke deployed agents in a conversation. Use when the user works with Boomi Agentstudio or Agent Garden agents, agent guardrails, agent tools, agent packages, or agent deployments.
+description: Builds and runs Boomi Agentstudio AI agents (the Agent Garden APIs) — list and inspect agents, author and update agent definitions including guardrails, author and install tools (Prompt, OpenAPI, Integration, Hub), browse sources, packages, deployments, and environments, and invoke deployed agents in a conversation; register custom AI agents in Agent Control Tower (ACT) and send their usage metrics. Use when the user works with Boomi Agentstudio or Agent Garden agents, agent guardrails, agent tools, agent packages, or agent deployments, or with Agent Control Tower, custom agent providers, or agent usage metrics.
 ---
 
 # boomi-agentstudio
 
 ## Scope
 
-In: read agents, tools, sources, packages, deployments, and environments; author agents (`create`, `update`); author tools (`create`, `update`, `install`, `uninstall` — Prompt, OpenAPI, Integration, Hub); author MCP-server sources (`discover`, `create`, `update`); package and deploy an agent (`package-create`, `deploy`); invoke a deployed agent and continue the conversation (`session`).
+In: read agents, tools, sources, packages, deployments, and environments; author agents (`create`, `update`); author tools (`create`, `update`, `install`, `uninstall` — Prompt, OpenAPI, Integration, Hub); author MCP-server sources (`discover`, `create`, `update`); package and deploy an agent (`package-create`, `deploy`); invoke a deployed agent and continue the conversation (`session`); register custom agents, describe them with LLMs, tasks, tools, and guardrails, and send their metrics to Agent Control Tower (`act`).
 
 Out: deleting anything (no delete path exists in this skill); creating MCP or Application tools directly — MCP tools come from their source (see **Authoring an MCP-server source**) and Application tools are Boomi-managed and read-only. Application and `acp_source` sources are read-only — the Design API exposes source writes only for MCP servers. Building Boomi integration processes belongs to `boomi-integration` — an Integration-type tool merely references a process that already exists there.
 
@@ -448,6 +448,15 @@ agentstudio-session.sh invoke --deployment <id> --message "Summarize the attache
 
 **Structured agents** use the same top-level `files[]` (alongside an object `message`); the input schema need not declare a `files` field. Embedding `files` inside the `message` object also works, but prefer the top-level form.
 
+## Agent Control Tower
+
+Agent Control Tower (ACT) is Agentstudio's registry and monitoring surface for AI agents, including agents that run outside Boomi. ACT's UI calls an alias a *Deployment*, which is unrelated to Agent Garden deployments. Integrating a custom agent takes two steps, both through `agentstudio-act.sh` (run `check` first):
+
+- [references/act_registry.md](references/act_registry.md) — register the agent, describe its LLMs, tasks, tools, and guardrails, and publish an alias. Use when: creating or reading provider accounts, agents, versions, aliases, or an agent's LLMs, tasks, tools, or guardrails in ACT.
+- [references/act_metric.md](references/act_metric.md) — send its metrics. Use when: reading an alias's Monitoring Spec, composing a metrics body, deciding where metrics are sent from, or confirming metrics were counted.
+
+Building a Boomi process that pulls an agent platform's usage and sends it to ACT belongs to `boomi-integration`; `act_metric.md` covers the ACT side of that process.
+
 ## `<skill-path>` resolution
 
 - Take the absolute path of this SKILL.md and drop `/SKILL.md`. That is `<skill-path>`.
@@ -468,6 +477,7 @@ All scripts support `--help` (or run with no args) for usage. They emit the raw 
 - `scripts/agentstudio-tool.sh` — `list | get | create | update | install | uninstall` (by `--type`, case-insensitive; `list`/`get` cover all types — `get` all but Application; `create`/`update`/`install`/`uninstall` cover Prompt, OpenAPI, Integration, Hub; `list` filters by `--type`, `--status` (a `tool_status` — e.g. `DRAFT` to find not-yet-installed tools), `--source-id`, `--application-name`, and `--search`)
 - `scripts/agentstudio-source.sh` — `list | get | mcp-servers | discover | create | update` (write subcommands apply to MCP-server sources only; `list` filters by `--type` MCPServer/acp_source/Application, `--status`, `--search`, `--page`, and elides base64 `application_icon` values by default — `--icons` keeps them, `get` returns the full icon)
 - `scripts/agentstudio-deployment.sh` — `environments | packages | deployments | package-create | deploy` (`environments` filters by `--classification PRODUCTION|TEST`, `--status ATTACHED|DETACHED`, and `--source AGENT_GARDEN|INTEGRATION` (`AGENT_GARDEN` = the deployable ones); `deployments` filters server-side by `--search`, `--status ACTIVE|DISABLED`, `--mode conversational|structured`, `--agent`, `--runtime`, `--page`, and is always scoped to `AGENTSTUDIO_ENVIRONMENT_ID`; `deploy` and `package-create --deploy` target `AGENTSTUDIO_ENVIRONMENT_ID` from `.env` — never an inline environment ID)
+- `scripts/agentstudio-act.sh` — `check | gql | create-account | create-agent | publish-alias | register | update | unlink | push-metric` (Agent Control Tower registry and metrics ingestion; `register`/`update`/`unlink` take `--kind llm|task|tool|guardrail --body <file.json>`; `unlink` removes links only; `gql` is read-only; a pushed metric can never be deleted)
 - `scripts/agentstudio-session.sh` — `invoke | continue` (attach files with repeatable `--file <path>` — base64-encoded and added as top-level `files[]`; see **File uploads**)
 
 Every list subcommand accepts the shared paging/sort flags `--page <n>`, `--page-size <1-100>` (max 100), `--sort-by <field>`, and `--sort-order asc|desc` (default `desc`; the default sort *field* varies by endpoint — `last_updated_on` for agents/tools, `created_on` for packages). `sort_by` field names are not enumerated by the API: `created_on` and `last_updated_on` sort predictably, whereas `name` is accepted but does not produce a flat A–Z order — prefer the timestamp fields when ordering must be predictable. An unrecognized `sort_by` returns `{"success":false,"error":"Invalid sort field: <field>"}` on a 2xx status, so the command still exits 0 — inspect the body, not just the exit code.

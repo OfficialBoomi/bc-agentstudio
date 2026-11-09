@@ -1,7 +1,7 @@
 {
   "name": "bc-agentstudio",
-  "description": "Builds and runs Boomi Agentstudio AI agents (the Agent Garden APIs) — list and inspect agents, author and update agent definitions, browse tools, sources, packages, deployments, and environments, and invoke deployed agents in a conversation. Use when the user works with Boomi Agentstudio / Agent Garden agents, agent tools, or agent deployments.",
-  "version": "0.1.43",
+  "description": "Builds and runs Boomi Agentstudio AI agents (the Agent Garden APIs) — list and inspect agents, author and update agent definitions, browse tools, sources, packages, deployments, and environments, and invoke deployed agents in a conversation; register custom AI agents in Agent Control Tower (ACT) and send their usage metrics. Use when the user works with Boomi Agentstudio / Agent Garden agents, agent tools, or agent deployments, or with Agent Control Tower, custom agent providers, or agent usage metrics.",
+  "version": "0.1.46",
   "author": {
     "name": "Boomi"
   }

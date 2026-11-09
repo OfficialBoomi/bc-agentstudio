@@ -160,6 +160,11 @@ case "$sub" in
   *) usage >&2; exit 1;;
 esac
 
+# Fence: a response body may echo a submitted authentication secret.
+_xtrace=0
+case $- in *x*) _xtrace=1 ;; esac
+set +x
+
 if (( RESPONSE_CODE < 200 || RESPONSE_CODE >= 300 )); then
   [[ -n "${op:-}" ]] && log_activity "$op" "fail" "$RESPONSE_CODE"
   fail_http
@@ -172,3 +177,5 @@ if [[ "${elide_icons:-0}" == 1 ]]; then
 else
   echo "$RESPONSE_BODY"
 fi
+
+if (( _xtrace )); then set -x; fi

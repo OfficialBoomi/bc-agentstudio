@@ -133,7 +133,7 @@ fi
 # Send bodies via a temp file, never an inline argv string: a large base64 body would exceed ARG_MAX.
 post_body_file() { agentstudio_api -X POST -H "Content-Type: application/json" --data-binary "@$1" "$url"; }
 post_body_inline() {
-  local tmp rc; tmp=$(mktemp)
+  local tmp rc; tmp=$(mktemp "$_AGENTSTUDIO_TMPDIR/body.XXXXXX")
   printf '%s' "$1" > "$tmp"
   post_body_file "$tmp" && rc=0 || rc=$?
   rm -f "$tmp"

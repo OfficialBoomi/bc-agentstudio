@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.46
+
+- Register an agent's LLMs, tasks, tools, and guardrails in Agent Control Tower (`agentstudio-act.sh register | update | unlink`)
+
+
+## 0.1.45
+
+- Remove API temp files, including the Agent Control Tower token, when a script is interrupted
+- Clarify the Basic auth form for Agent Control Tower metrics ingestion
+- Keep MCP server and tool responses out of shell trace output
+
+
+## 0.1.44
+
+- Register custom AI agents in Agent Control Tower and send their usage metrics (`agentstudio-act.sh`)
+
+
 ## 0.1.43
 
 - Remove Claude-specific references

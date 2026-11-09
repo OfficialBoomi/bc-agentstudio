@@ -3,6 +3,10 @@
 
 set -euo pipefail
 
+# Temp files for API calls; removed on exit. Scripts must not set their own EXIT trap.
+_AGENTSTUDIO_TMPDIR=$(mktemp -d)
+trap 'rm -rf "$_AGENTSTUDIO_TMPDIR"' EXIT
+
 # --- Environment ---
 
 load_env() {
@@ -259,19 +263,45 @@ agentstudio_api() {
   case $- in *x*) _xtrace=1 ;; esac
   set +x
 
-  local userpass="BOOMI_TOKEN.${BOOMI_USERNAME}:${BOOMI_API_TOKEN}"
-
-  local cfg
-  cfg=$(curl_cfg user "$userpass") || {
+  local cfg rc=0
+  if cfg=$(curl_cfg user "BOOMI_TOKEN.${BOOMI_USERNAME}:${BOOMI_API_TOKEN}"); then
+    _agentstudio_curl "$cfg" "$@" || rc=$?
+  else
     echo "ERROR: could not build the curl auth config." >&2
-    if (( _xtrace )); then set -x; fi
-    return 1
-  }
+    rc=1
+  fi
 
+  # `if`, not `&&` — a false `&&` tail returns 1 and trips a caller's set -e.
+  if (( _xtrace )); then set -x; fi
+  return "$rc"
+}
+
+# As agentstudio_api, but Bearer auth from AGENTSTUDIO_BEARER_TOKEN (unexported).
+agentstudio_api_bearer() {
+  # Fence: xtrace would print the bearer token the next assignment expands.
+  local _xtrace=0
+  case $- in *x*) _xtrace=1 ;; esac
+  set +x
+
+  local cfg rc=0
+  if cfg=$(curl_cfg header "Authorization: Bearer ${AGENTSTUDIO_BEARER_TOKEN}"); then
+    _agentstudio_curl "$cfg" "$@" || rc=$?
+  else
+    echo "ERROR: could not build the curl auth config." >&2
+    rc=1
+  fi
+
+  if (( _xtrace )); then set -x; fi
+  return "$rc"
+}
+
+# Runs curl with a `-K -` config on stdin. Callers fence xtrace around it.
+_agentstudio_curl() {
+  local cfg="$1"; shift
   local timeout="${AGENTSTUDIO_TIMEOUT:-60}"
 
   local tmpfile
-  tmpfile=$(mktemp)
+  tmpfile=$(mktemp "$_AGENTSTUDIO_TMPDIR/response.XXXXXX")
 
   # Run curl without errexit so connection failures return, not abort.
   local rc
@@ -288,9 +318,6 @@ agentstudio_api() {
   RESPONSE_BODY=$(cat "$tmpfile")
   rm -f "$tmpfile"
 
-  # `if`, not `&&` — a false `&&` tail returns 1 and trips a caller's set -e.
-  if (( _xtrace )); then set -x; fi
-
   if (( rc != 0 )) || [[ -z "$RESPONSE_CODE" || "$RESPONSE_CODE" == "000" ]]; then
     # Pull the request URL out of the args so the hint can name the offending host.
     local target_url="" target_host="" arg
@@ -301,8 +328,7 @@ agentstudio_api() {
     case "$rc" in
       6)
         echo "ERROR: DNS could not resolve host '${target_host:-?}' (curl exit 6)." >&2
-        echo "  This is a bad hostname, not a network outage — verify the host in" >&2
-        echo "  AGENTSTUDIO_DESIGN_URL / AGENTSTUDIO_EXECUTE_URL." >&2
+        echo "  This is a bad hostname, not a network outage — verify the host URL in .env." >&2
         ;;
       7)
         echo "ERROR: connection refused by '${target_host:-?}' (curl exit 7)." >&2
@@ -313,7 +339,7 @@ agentstudio_api() {
         echo "  Likely a slow network, VPN, or an unresponsive host." >&2
         ;;
       *)
-        echo "ERROR: could not reach the Agent Garden API — network or connection failure (curl exit ${rc})." >&2
+        echo "ERROR: could not reach '${target_host:-the API}' — network or connection failure (curl exit ${rc})." >&2
         echo "  Likely a request timeout, DNS failure, refused connection, or no network. No HTTP" >&2
         echo "  response was received, so the request may or may not have reached the server." >&2
         ;;
